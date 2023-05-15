@@ -1551,8 +1551,10 @@ static unsigned long unmapped_area(struct vm_unmapped_area_info *info)
 	unsigned long length, gap;
 	unsigned long low_limit, high_limit;
 	struct vm_area_struct *tmp;
+	int r;
 
 	MA_STATE(mas, &current->mm->mm_mt, 0, 0);
+	pr_err("unmapped_area %p %lu %lu %lx %lx\n", info, info->length, info->align_mask, info->low_limit, info->high_limit);
 
 	/* Adjust search length to account for worst case alignment overhead */
 	length = info->length + info->align_mask;
@@ -1560,27 +1562,45 @@ static unsigned long unmapped_area(struct vm_unmapped_area_info *info)
 		return -ENOMEM;
 
 	low_limit = info->low_limit;
-	if (low_limit < mmap_min_addr)
+	if (low_limit < mmap_min_addr) {
 		low_limit = mmap_min_addr;
+	}
 	high_limit = info->high_limit;
 retry:
-	if (mas_empty_area(&mas, low_limit, high_limit - 1, length))
+	pr_err("low_limit %p %lx %lx\n", info, low_limit, mmap_min_addr);
+	pr_err("unmapped_area2 %p %lu %lu %lx %lx\n", info, info->length, info->align_mask, low_limit, high_limit);
+	if ((r = mas_empty_area(&mas, low_limit, high_limit - 1, length))) {
+					pr_err("unmapped_area3 %p %lu %lu %lx %lx\n", info, info->length, info->align_mask, low_limit, high_limit);
+		pr_err("ENOMEM %i %lx\n", r, low_limit);
+		mt_validate(mas.tree);
+		mt_dump(mas.tree);
 		return -ENOMEM;
+	}
 
 	gap = mas.index;
 	gap += (info->align_offset - gap) & info->align_mask;
+	pr_err("-next %lx %lx\n", mas.index, mas.last);
 	tmp = mas_next(&mas, ULONG_MAX);
+	pr_err("+next %lx %lx\n", mas.index, mas.last);
 	if (tmp && (tmp->vm_flags & VM_GROWSDOWN)) { /* Avoid prev check if possible */
+				pr_err("next1 %lx %lx %lx\n", vm_start_gap(tmp), gap, gap + length - 1);
 		if (vm_start_gap(tmp) < gap + length - 1) {
 			low_limit = tmp->vm_end;
 			mas_reset(&mas);
+			pr_err("retry1 %p %lx %lx\n", info, low_limit, high_limit);
 			goto retry;
 		}
 	} else {
+					void *tmp2 = tmp;
 		tmp = mas_prev(&mas, 0);
+		pr_err("+prev %lx %lx\n", mas.index, mas.last);
+		pr_err("next2 %p %p %lx %lx\n", tmp2, tmp, vm_end_gap(tmp), gap);
+		// potential fix
+		/* if (tmp && vm_end_gap(tmp) > gap && vm_end_gap(tmp) + length < high_limit) { */
 		if (tmp && vm_end_gap(tmp) > gap) {
 			low_limit = vm_end_gap(tmp);
 			mas_reset(&mas);
+			pr_err("retry2 %p %lx %lx %lx\n", info, low_limit, high_limit, gap);
 			goto retry;
 		}
 	}
@@ -1605,6 +1625,8 @@ static unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
 	struct vm_area_struct *tmp;
 
 	MA_STATE(mas, &current->mm->mm_mt, 0, 0);
+	pr_err("unmapped_area_topdown\n");
+
 	/* Adjust search length to account for worst case alignment overhead */
 	length = info->length + info->align_mask;
 	if (length < info->length)

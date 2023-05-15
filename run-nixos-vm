@@ -1,0 +1,9 @@
+#! /nix/store/ywi6kzrk88zl22jvazdnlfaf9rqrj2aq-bash-5.2-p15/bin/bash
+set -e
+exec /nix/store/6dndb17cmr97wrd7si9zrxp9alv5lmig-qemu-host-cpu-only-8.0.0/bin/qemu-kvm -cpu max \
+    -name nixos \
+    -kernel arch/x86/boot/bzImage \
+    -initrd initrd.cpio \
+    -append "console=tty0 console=ttyS0 panic=-1" \
+    -nographic \
+    -no-reboot

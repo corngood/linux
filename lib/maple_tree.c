@@ -5289,8 +5289,11 @@ int mas_empty_area(struct ma_state *mas, unsigned long min,
 	unsigned long *pivots;
 	enum maple_type mt;
 
-	if (min >= max)
+	/* pr_err("X\n"); */
+	if (min >= max) {
+					pr_err("UH OH %lx %lx\n", min, max);
 		return -EINVAL;
+	}
 
 	if (mas_is_start(mas))
 		mas_start(mas);
@@ -5299,18 +5302,26 @@ int mas_empty_area(struct ma_state *mas, unsigned long min,
 	else if (!mas_skip_node(mas))
 		return -EBUSY;
 
+	/* pr_err("A\n"); */
+
 	/* Empty set */
 	if (mas_is_none(mas) || mas_is_ptr(mas))
 		return mas_sparse_area(mas, min, max, size, true);
+
+	/* pr_err("B\n"); */
 
 	/* The start of the window can only be within these values */
 	mas->index = min;
 	mas->last = max;
 	mas_awalk(mas, size);
 
-	if (unlikely(mas_is_err(mas)))
-		return xa_err(mas->node);
+	if (unlikely(mas_is_err(mas))) {
+		int err = xa_err(mas->node);
+		pr_err("xa_err %p %i\n", mas->node, err);
+		return err;
+	}
 
+	/* pr_err("C\n"); */
 	offset = mas->offset;
 	if (unlikely(offset == MAPLE_NODE_SLOTS))
 		return -EBUSY;
@@ -6765,9 +6776,9 @@ static void mt_dump_range(unsigned long min, unsigned long max,
 	static const char spaces[] = "                                ";
 
 	if (min == max)
-		pr_info("%.*s%lu: ", depth * 2, spaces, min);
+		pr_info("%.*s%lx: ", depth * 2, spaces, min);
 	else
-		pr_info("%.*s%lu-%lu: ", depth * 2, spaces, min, max);
+		pr_info("%.*s%lx-%lx: ", depth * 2, spaces, min, max);
 }
 
 static void mt_dump_entry(void *entry, unsigned long min, unsigned long max,
