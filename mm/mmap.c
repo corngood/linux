@@ -58,6 +58,9 @@
 
 #include "internal.h"
 
+#pragma GCC push_options
+#pragma GCC optimize ("Og")
+
 #ifndef arch_mmap_check
 #define arch_mmap_check(addr, len, flags)	(0)
 #endif
@@ -1546,12 +1549,14 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
  *
  * Return: A memory address or -ENOMEM.
  */
+bool debug_wait = true;
 static unsigned long unmapped_area(struct vm_unmapped_area_info *info)
 {
-	unsigned long length, gap;
+	unsigned long length, gap, old_gap;
 	unsigned long low_limit, high_limit;
 	struct vm_area_struct *tmp;
 	int r;
+  struct ma_state mas2;
 
 	MA_STATE(mas, &current->mm->mm_mt, 0, 0);
 	pr_err("unmapped_area %p %lu %lu %lx %lx\n", info, info->length, info->align_mask, info->low_limit, info->high_limit);
@@ -1577,11 +1582,12 @@ retry:
 		return -ENOMEM;
 	}
 
-	gap = mas.index;
+	old_gap = gap = mas.index;
 	gap += (info->align_offset - gap) & info->align_mask;
 	pr_err("-next %lx %lx\n", mas.index, mas.last);
+  mas2 = mas;
 	tmp = mas_next(&mas, ULONG_MAX);
-	pr_err("+next %lx %lx\n", mas.index, mas.last);
+	pr_err("+next %lx %lx %p %lx %lx\n", mas.index, mas.last, tmp, vm_start_gap(tmp), vm_end_gap(tmp));
 	if (tmp && (tmp->vm_flags & VM_GROWSDOWN)) { /* Avoid prev check if possible */
 				pr_err("next1 %lx %lx %lx\n", vm_start_gap(tmp), gap, gap + length - 1);
 		if (vm_start_gap(tmp) < gap + length - 1) {
@@ -1593,8 +1599,17 @@ retry:
 	} else {
 					void *tmp2 = tmp;
 		tmp = mas_prev(&mas, 0);
-		pr_err("+prev %lx %lx\n", mas.index, mas.last);
+    pr_err("+prev %lx %lx %p %lx %lx\n", mas.index, mas.last, tmp, vm_start_gap(tmp), vm_end_gap(tmp));
 		pr_err("next2 %p %p %lx %lx\n", tmp2, tmp, vm_end_gap(tmp), gap);
+    if (mas.index > old_gap) {
+            pr_err("AAAH, gap didn't move back %lx %lx\n", old_gap, mas.index);
+            validate_mm(current->mm);
+            pr_err("DEAD\n");
+            mt_dump(mas.tree);
+            /* BUG(); */
+            while(debug_wait) {}
+            mas_next(&mas2, ULONG_MAX);
+    }
 		// potential fix
 		/* if (tmp && vm_end_gap(tmp) > gap && vm_end_gap(tmp) + length < high_limit) { */
 		if (tmp && vm_end_gap(tmp) > gap) {
@@ -3812,3 +3827,5 @@ static int __meminit init_reserve_notifier(void)
 	return 0;
 }
 subsys_initcall(init_reserve_notifier);
+
+#pragma GCC pop_options

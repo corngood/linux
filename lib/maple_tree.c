@@ -62,6 +62,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/maple_tree.h>
 
+#pragma GCC push_options
+#pragma GCC optimize ("Og")
+
 #define MA_ROOT_PARENT 1
 
 /*
@@ -7237,3 +7240,5 @@ done:
 EXPORT_SYMBOL_GPL(mt_validate);
 
 #endif /* CONFIG_DEBUG_MAPLE_TREE */
+
+#pragma GCC pop_options

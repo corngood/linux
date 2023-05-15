@@ -1,0 +1,1 @@
+nix-shell -A linux_testing ~/src/nixpkgs --run "make -j`nproc` bzImage" && $(nix-build test.nix --no-out-link) | tee log

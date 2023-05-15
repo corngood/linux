@@ -18,7 +18,8 @@ in writeScript "run-test" ''
       -name nixos \
       -kernel arch/x86/boot/bzImage \
       -initrd ${initrd} \
-      -append "console=tty0 console=ttyS0 panic=-1" \
+      -append "console=tty0 console=ttyS0 panic=-1 nokaslr" \
       -nographic \
-      -no-reboot
+      -no-reboot \
+      -s
 ''
