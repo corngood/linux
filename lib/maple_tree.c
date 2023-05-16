@@ -62,9 +62,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/maple_tree.h>
 
-#pragma GCC push_options
-#pragma GCC optimize ("Og")
-
 #define MA_ROOT_PARENT 1
 
 /*
@@ -5292,11 +5289,8 @@ int mas_empty_area(struct ma_state *mas, unsigned long min,
 	unsigned long *pivots;
 	enum maple_type mt;
 
-	/* pr_err("X\n"); */
-	if (min >= max) {
-					pr_err("UH OH %lx %lx\n", min, max);
+	if (min >= max)
 		return -EINVAL;
-	}
 
 	if (mas_is_start(mas))
 		mas_start(mas);
@@ -5305,37 +5299,29 @@ int mas_empty_area(struct ma_state *mas, unsigned long min,
 	else if (!mas_skip_node(mas))
 		return -EBUSY;
 
-	/* pr_err("A\n"); */
-
 	/* Empty set */
 	if (mas_is_none(mas) || mas_is_ptr(mas))
 		return mas_sparse_area(mas, min, max, size, true);
-
-	/* pr_err("B\n"); */
 
 	/* The start of the window can only be within these values */
 	mas->index = min;
 	mas->last = max;
 	mas_awalk(mas, size);
 
-	if (unlikely(mas_is_err(mas))) {
-		int err = xa_err(mas->node);
-		pr_err("xa_err %p %i\n", mas->node, err);
-		return err;
-	}
+	if (unlikely(mas_is_err(mas)))
+		return xa_err(mas->node);
 
-	/* pr_err("C\n"); */
 	offset = mas->offset;
 	if (unlikely(offset == MAPLE_NODE_SLOTS))
 		return -EBUSY;
 
 	mt = mte_node_type(mas->node);
 	pivots = ma_pivots(mas_mn(mas), mt);
-	/* if (offset) */
-	/* 	mas->min = pivots[offset - 1] + 1; */
+	if (offset)
+		mas->min = pivots[offset - 1] + 1;
 
-	/* if (offset < mt_pivots[mt]) */
-	/* 	mas->max = pivots[offset]; */
+	if (offset < mt_pivots[mt])
+		mas->max = pivots[offset];
 
 	if (mas->index < mas->min)
 		mas->index = mas->min;
@@ -6779,9 +6765,9 @@ static void mt_dump_range(unsigned long min, unsigned long max,
 	static const char spaces[] = "                                ";
 
 	if (min == max)
-		pr_info("%.*s%lx: ", depth * 2, spaces, min);
+		pr_info("%.*s%lu: ", depth * 2, spaces, min);
 	else
-		pr_info("%.*s%lx-%lx: ", depth * 2, spaces, min, max);
+		pr_info("%.*s%lu-%lu: ", depth * 2, spaces, min, max);
 }
 
 static void mt_dump_entry(void *entry, unsigned long min, unsigned long max,
@@ -7240,5 +7226,3 @@ done:
 EXPORT_SYMBOL_GPL(mt_validate);
 
 #endif /* CONFIG_DEBUG_MAPLE_TREE */
-
-#pragma GCC pop_options
