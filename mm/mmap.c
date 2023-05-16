@@ -1559,6 +1559,7 @@ static unsigned long unmapped_area(struct vm_unmapped_area_info *info)
   struct ma_state mas2;
 
 	MA_STATE(mas, &current->mm->mm_mt, 0, 0);
+	MA_STATE(mas3, &current->mm->mm_mt, 0, 0);
 	pr_err("unmapped_area %p %lu %lu %lx %lx\n", info, info->length, info->align_mask, info->low_limit, info->high_limit);
 
 	/* Adjust search length to account for worst case alignment overhead */
@@ -1608,6 +1609,7 @@ retry:
             mt_dump(mas.tree);
             /* BUG(); */
             while(debug_wait) {}
+						mas_empty_area(&mas3, low_limit, high_limit - 1, length);
             mas_next(&mas2, ULONG_MAX);
     }
 		// potential fix
